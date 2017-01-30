@@ -8,13 +8,12 @@ from StringIO import StringIO
 import re
 
 PMID_PATTERN = re.compile(r'<PMID Version="1">(\d+)</PMID>')
-MESH_PATTERN = re.compile(r'<DescriptorName MajorTopicYN="[YN]" UI="D\d+">(.+)</DescriptorName>')
-XML_HEADER = '''<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE MedlineCitationSet PUBLIC "-//NLM//DTD Medline Citation, 1st January, 2009//EN"
-                                    "http://teamsite.nlm.nih.gov:81/iw-mount/default/main/nlm/STAGING/htdocs/databases/dtd/nlmmedline_090101.dtd">
-<MedlineCitationSet>
+MESH_PATTERN = re.compile(r'<DescriptorName.*UI="(D\d+)".*>.+</DescriptorName>')
+XML_HEADER = '''<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE PubmedArticleSet SYSTEM "http://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_170101.dtd">
+<PubmedArticleSet>
 '''
-XML_FOOTER = '''</MedlineCitationSet>
+XML_FOOTER = '''
 '''
 
 class FilterPubMed(OptionParser):
@@ -48,10 +47,11 @@ class FilterPubMed(OptionParser):
         f = open(self.options.mesh_trees)
         self.mesh_filter = set()
         for line in f:
-            name, path = line.strip().split(';')
+            path, did, dname = line.strip().split('\t')
             for p in mesh_paths:
                 if path.startswith(p):
-                    self.mesh_filter.add(name)
+                    stderr.write('  %s: %s\n' % (did, dname))
+                    self.mesh_filter.add(did)
                     break
 
     def filter(self):
@@ -129,7 +129,7 @@ class Memory:
 
 
 def state_start(line, mem):
-    if line.startswith('<MedlineCitation '):
+    if line.strip().startswith('<PubmedArticle>'):
         mem.buffer(line)
         return state_buffer
     return state_start
@@ -147,12 +147,12 @@ def state_buffer(line, mem):
     return state_buffer
 
 def state_reject(line, mem):
-    if line.startswith('</MedlineCitation>'):
+    if line.strip().startswith('</PubmedArticle>'):
         return mem.init()
     return state_reject
 
 def state_pmid(line, mem):
-    if line.startswith('</MedlineCitation>'):
+    if line.strip().startswith('</PubmedArticle>'):
         return mem.init()
     mem.buffer(line)
     m = MESH_PATTERN.search(line)
@@ -163,7 +163,7 @@ def state_pmid(line, mem):
 
 def state_output(line, mem):
     mem.xml_out.write(line)
-    if line.startswith('</MedlineCitation>'):
+    if line.strip().startswith('</PubmedArticle>'):
         return mem.init()
     return state_output
 
