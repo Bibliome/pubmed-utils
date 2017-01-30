@@ -6,10 +6,11 @@ from os.path import dirname, exists
 from os import makedirs
 from sys import stderr
 
-XML_HEADER = '''<?xml version="1.0" encoding="UTF-8"?>
-<MedlineCitationSet>
+XML_HEADER = '''<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE PubmedArticleSet SYSTEM "http://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_170101.dtd">
+<PubmedArticleSet>
 '''
-XML_FOOTER = '''</MedlineCitationSet>
+XML_FOOTER = '''</PubmedArticleSet>
 '''
 
 class SplitPubMed(OptionParser):
@@ -40,11 +41,11 @@ class SplitPubMed(OptionParser):
             fin = open(filename)
             inside = False
             for line in fin:
-                if line.startswith('<MedlineCitation '):
+                if line.strip().startswith('<PubmedArticle>'):
                     inside = True
                 if inside:
                     fout.write(line)
-                if line.startswith('</MedlineCitation>'):
+                if line.strip().startswith('</PubmedArticle>'):
                     n += 1
                     if n == self.options.max_entries:
                         self.close(fout)
